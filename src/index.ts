@@ -4,7 +4,7 @@ import { Deck } from './cards';
 const PORT: number = Number.parseInt(process.env.port || "6969");
 const io = new Server({
   cors: {
-    origin: ["http://localhost:5173"],
+    origin: ["http://localhost:5173", "https://cah.mnogueira.ca"],
   }
 });
 
