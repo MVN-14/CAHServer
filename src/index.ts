@@ -31,7 +31,7 @@ io.on("connection", (socket) => {
       ready: false,
       socketId: socket.id
     });
-  
+
     io.to(roomName).emit("updatePlayers", roomUsers);
     serverMessage(roomName);
   })
@@ -90,12 +90,26 @@ function serverMessage(roomName: string) {
   }
 
   io.emit("serverMessage", "Starting game...");
-  startGame();
+  startGame(roomName);
 }
 
-function startGame() {
+function startGame(roomName: string) {
   const prompt = deck.drawBlackCard();
   io.emit("start");
   io.emit("prompt", prompt);
+  const czar = chooseRandomCzar(roomName);
+  io.emit("czar", czar)
   io.emit("serverMessage", "Waiting for players...")
+}
+
+function chooseRandomCzar(roomName: string): string {
+  const roomUsers = users.get(roomName);
+  if (!roomUsers) {
+    return "";
+  }
+
+  const randomIdx = Math.floor(Math.random() * (roomUsers.length + 1));
+  console.log(randomIdx)
+  console.log("czar is " + roomUsers[randomIdx].name);
+  return roomUsers[randomIdx].name;
 }
