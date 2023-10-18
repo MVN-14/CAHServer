@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import { Deck } from './cards';
-import { User } from './user'
+import { User } from './user';
 
 const PORT: number = Number.parseInt(process.env.port || "6969");
 const io = new Server({
@@ -9,8 +9,9 @@ const io = new Server({
   }
 });
 
-const users: Map<string, User[]> = new Map<string, User[]>;
-const deck: Deck = new Deck();
+const users = new Map<string, User[]>;
+const deck = new Deck();
+
 const minPlayers = 3;
 
 io.on("connection", (socket) => {
@@ -29,7 +30,8 @@ io.on("connection", (socket) => {
     roomUsers.push({
       name: username,
       ready: false,
-      socketId: socket.id
+      socketId: socket.id,
+      playedCard: false,
     });
 
     io.to(roomName).emit("updatePlayers", roomUsers);
@@ -52,7 +54,14 @@ io.on("connection", (socket) => {
   })
 
   socket.on("cardPlayed", (card: string) => {
-    // update player list
+    const roomUsers = users.get(socket.data.roomName);
+    if (!roomUsers) return;
+
+    const playedUser = roomUsers.find(u => u.socketId == socket.id)
+    if(playedUser) {
+      playedUser.playedCard = true;
+      io.emit("updatePlayers", roomUsers);
+    }
     console.log("Card Played")
   })
 
