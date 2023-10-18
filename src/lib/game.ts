@@ -20,7 +20,7 @@ export class Game {
    }
   
   removePlayer(socketId: string) {
-    this.players = this.players.filter(p => p.socketId == socketId);
+    this.players = this.players.filter(p => p.socketId !== socketId);
   }
 
   getReadyCount() {
