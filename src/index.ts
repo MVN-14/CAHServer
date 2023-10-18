@@ -95,5 +95,7 @@ function serverMessage(roomName: string) {
 
 function startGame() {
   const prompt = deck.drawBlackCard();
+  io.emit("start");
   io.emit("prompt", prompt);
+  io.emit("serverMessage", "Waiting for players...")
 }
