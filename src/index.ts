@@ -1,6 +1,5 @@
 import { Server } from 'socket.io';
-import { Deck } from './cards';
-import { User } from './user';
+import { Game, Deck, Player } from './lib';
 
 const PORT: number = Number.parseInt(process.env.port || "6969");
 const io = new Server({
@@ -9,7 +8,7 @@ const io = new Server({
   }
 });
 
-const users = new Map<string, User[]>;
+const rooms = new Map<string, Game>;
 const deck = new Deck();
 
 const minPlayers = 3;
@@ -19,49 +18,35 @@ io.on("connection", (socket) => {
 
   socket.on("joinRoom", ({ roomName, username }) => {
     socket.data.roomName = roomName;
-    socket.data.username = username;
-
     socket.join(roomName);
-    if (!users.has(roomName)) {
-      users.set(roomName, []);
+
+    let game = rooms.get(roomName);
+    if (!game) {
+      game = new Game();
+      rooms.set(roomName, game);
     }
 
-    const roomUsers = users.get(roomName)!;
-    roomUsers.push({
-      name: username,
-      ready: false,
-      socketId: socket.id,
-      playedCard: false,
-    });
+    game.players.push(new Player(username, socket.id));
 
-    io.to(roomName).emit("updatePlayers", roomUsers);
+    io.to(roomName).emit("updatePlayers", game.players);
     serverMessage(roomName);
   })
 
   socket.on("ready", () => {
-    const roomUsers = users.get(socket.data.roomName);
-    if (!roomUsers) {
-      return;
-    }
+    const game = rooms.get(socket.data.roomName);
+    if (!game) { return; }
 
-    const user = roomUsers.find(u => u.socketId === socket.id);
-    if (!user) {
-      return;
-    }
-
-    user.ready = true;
+    game.setReady(socket.id);
     serverMessage(socket.data.roomName);
   })
 
   socket.on("cardPlayed", (card: string) => {
-    const roomUsers = users.get(socket.data.roomName);
-    if (!roomUsers) return;
+    const game = rooms.get(socket.data.roomName);
+    if (!game) { return; }
 
-    const playedUser = roomUsers.find(u => u.socketId == socket.id)
-    if(playedUser) {
-      playedUser.playedCard = true;
-      io.emit("updatePlayers", roomUsers);
-    }
+    game.setPlayedCard(socket.id);
+    io.emit("updatePlayers", game.players);
+
   })
 
   socket.on("requestWhiteCards", (amount: number) => {
@@ -73,9 +58,12 @@ io.on("connection", (socket) => {
   })
 
   socket.on("disconnect", () => {
-    users.set(socket.data.roomName, users.get(socket.data.roomName)?.filter(u => u.socketId !== socket.id) ?? []);
+    const game = rooms.get(socket.data.roomName);
+    if (!game) { return; }
+
+    game.removePlayer(socket.id);
     console.log(`Socket ${socket.id} disconnected`);
-    io.emit("updatePlayers", users.get(socket.data.roomName));
+    io.emit("updatePlayers", game.players);
   })
 });
 
@@ -83,22 +71,17 @@ io.listen(PORT);
 console.log(`Socket server listening on port ${PORT}`)
 
 function serverMessage(roomName: string) {
-  const roomUsers = users.get(roomName);
-  if (!roomUsers) return;
+  const game = rooms.get(roomName);
+  if (!game) { return; }
 
-  if (roomUsers.length < minPlayers) {
-    io.emit("serverMessage", `Waiting for ${minPlayers - roomUsers.length} more players to join...`);
-    return;
-  }
-
-  const readyPlayers = roomUsers.filter(u => u.ready).length;
-  if (readyPlayers < roomUsers.length) {
-    io.emit("serverMessage", `${readyPlayers}/${roomUsers.length} ready...`);
-    return;
-  }
-
+  if (game.players.length < minPlayers) {
+    io.emit("serverMessage", `Waiting for ${minPlayers - game.players.length} more players to join...`);
+  } else if (game.getReadyCount() < game.players.length) {
+    io.emit("serverMessage", `${game.getReadyCount()}/${game.players.length} ready...`);
+  } else {
   io.emit("serverMessage", "Starting game...");
   startGame(roomName);
+  }
 }
 
 function startGame(roomName: string) {
@@ -111,11 +94,9 @@ function startGame(roomName: string) {
 }
 
 function chooseRandomCzar(roomName: string): string {
-  const roomUsers = users.get(roomName);
-  if (!roomUsers) {
-    return "";
-  }
+  const game = rooms.get(roomName);
+  if (!game) { return ""; }
 
-  const randomIdx = Math.floor(Math.random() * (roomUsers.length + 1));
-  return roomUsers[randomIdx].name;
+  const randomIdx = Math.floor(Math.random() * (game.players.length + 1));
+  return game.players[randomIdx].name;
 }
