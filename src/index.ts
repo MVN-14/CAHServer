@@ -87,6 +87,9 @@ function serverMessage(roomName: string) {
 }
 
 function startGame(roomName: string) {
+    const game = rooms.get(roomName);
+  if (!game) { return; }
+
   const prompt = game.deck.drawBlackCard();
   io.emit("start");
   io.emit("prompt", prompt);
