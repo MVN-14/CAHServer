@@ -9,7 +9,6 @@ const io = new Server({
 });
 
 const rooms = new Map<string, Game>;
-const deck = new Deck();
 
 const minPlayers = 3;
 
@@ -50,9 +49,12 @@ io.on("connection", (socket) => {
   })
 
   socket.on("requestWhiteCards", (amount: number) => {
+    const game = rooms.get(socket.data.roomName);
+    if (!game) { return; }
+
     const cards: string[] = [];
     for (let i = 0; i < amount; ++i) {
-      cards.push(deck.drawWhiteCard());
+      cards.push(game.deck.drawWhiteCard());
     }
     io.to(socket.id).emit("recieveWhiteCards", cards);
   })
@@ -79,13 +81,13 @@ function serverMessage(roomName: string) {
   } else if (game.getReadyCount() < game.players.length) {
     io.emit("serverMessage", `${game.getReadyCount()}/${game.players.length} ready...`);
   } else {
-  io.emit("serverMessage", "Starting game...");
-  startGame(roomName);
+    io.emit("serverMessage", "Starting game...");
+    startGame(roomName);
   }
 }
 
 function startGame(roomName: string) {
-  const prompt = deck.drawBlackCard();
+  const prompt = game.deck.drawBlackCard();
   io.emit("start");
   io.emit("prompt", prompt);
   const czar = chooseRandomCzar(roomName);

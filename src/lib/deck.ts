@@ -7,7 +7,7 @@ export class Deck {
   blackCardsUsed: number[] = [];
 
   public drawWhiteCard(): string {
-    let cardIdx;
+    let cardIdx: number;
     do {
       cardIdx = randomIntInRange(0, this.cards.white.length)
     } while (this.whiteCardsUsed.includes(cardIdx));
@@ -15,11 +15,11 @@ export class Deck {
     return this.cards.white[cardIdx];
   }
 
-  public drawBlackCard(): {text: string, pick: number} {
-   let cardIdx;
+  public drawBlackCard(): { text: string, pick: number } {
+    let cardIdx: number;
     do {
       cardIdx = randomIntInRange(0, this.cards.black.length);
-    } while(this.blackCardsUsed.includes(cardIdx));
+    } while (this.blackCardsUsed.includes(cardIdx));
     this.blackCardsUsed.push(cardIdx);
     return this.cards.black[cardIdx];
   }
