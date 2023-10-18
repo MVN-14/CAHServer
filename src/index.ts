@@ -62,7 +62,6 @@ io.on("connection", (socket) => {
       playedUser.playedCard = true;
       io.emit("updatePlayers", roomUsers);
     }
-    console.log("Card Played")
   })
 
   socket.on("requestWhiteCards", (amount: number) => {
@@ -118,7 +117,5 @@ function chooseRandomCzar(roomName: string): string {
   }
 
   const randomIdx = Math.floor(Math.random() * (roomUsers.length + 1));
-  console.log(randomIdx)
-  console.log("czar is " + roomUsers[randomIdx].name);
   return roomUsers[randomIdx].name;
 }
