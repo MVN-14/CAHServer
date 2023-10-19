@@ -1,36 +1,64 @@
 import { Deck, Player } from './';
 
 export class Game {
-  players: Player[] = [];
   started: boolean = false;
-  deck: Deck = new Deck();
-  
-  private _czarIdx = 0;
+  status: string = "";
+  players: Player[] = [];
+  playedCards: {socketId: string, card: string}[] = [];
+  prompt?: {text: string, pick: number};
 
-  start() {
+  get playersNeeded(): number { return this._minPlayers - this.players.length; }
+  get allReady(): boolean { return this.readyCount == this.players.length; }
+  get readyCount(): number { return this.players.filter(p => p.ready).length }
+  get playerCount(): number { return this.players.length; }
+
+  private _deck: Deck = new Deck();
+  private _czarIdx = 0;
+  private _minPlayers = 3;
+
+  start(): void {
     this.started = true;
     this.players[this._czarIdx++].isCzar = true;
+    this.prompt = this._deck.drawBlackCard();
+    this.status = "Game starting..."
   }
 
-  setReady(socketId: string) {
-    const player = this.players.find(p => p.socketId === socketId);
-    if(!player) return;
+  addPlayer(player: Player): void {
+    this.players.push(player);
+  }
 
+  readyPlayer(socketId: string): void {
+    const player = this.findPlayer(socketId);
     player.ready = true;
   }
-  
-  setPlayedCard(socketId: string) {
-    const player = this.players.find(p => p.socketId === socketId);
-    if(!player) return;
 
+  playCard(socketId: string, card: string): void {
+    const player = this.findPlayer(socketId);
+    
+    player.cards = player.cards.filter(c => c !== card);
+    this.playedCards.push({socketId, card});
     player.playedCard = true;
-   }
-  
-  removePlayer(socketId: string) {
+  }
+
+  drawWhiteCards(amount: number, socketId: string): void {
+    const player = this.findPlayer(socketId);
+
+    for (let i = 0; i < amount; ++i) {
+      player?.cards.push(this._deck.drawWhiteCard());
+    };
+  }
+
+  removePlayer(socketId: string): void {
     this.players = this.players.filter(p => p.socketId !== socketId);
   }
 
-  getReadyCount() {
-    return this.players.filter(p => p.ready).length;
+  private findPlayer(socketId: string): Player {
+    const player = this.players.find(p => p.socketId === socketId);
+    if(!player) {
+      throw new Error(`Failed to find player with socketId ${socketId}`);
+    }
+
+    return player;
   }
+
 }

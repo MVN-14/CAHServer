@@ -10,8 +10,6 @@ const io = new Server({
 
 const rooms = new Map<string, Game>;
 
-const minPlayers = 3;
-
 io.on("connection", (socket) => {
   console.log(`socket ${socket.id} connected`);
 
@@ -25,79 +23,77 @@ io.on("connection", (socket) => {
       rooms.set(roomName, game);
     }
 
-    game.players.push(new Player(username, socket.id));
-
-    io.to(roomName).emit("updatePlayers", game.players);
-    if(!game.started) {
-      serverMessage(roomName);
+    game.addPlayer(new Player(username, socket.id));
+    if(!game.started) {  
+    if (game.playersNeeded > 0) {
+      game.status = `Waiting for ${game.playersNeeded} more players...`;
+    } else {
+        game.status = `${game.readyCount}/${game.playerCount} ready`
+      }
     }
+
+    io.to(roomName).emit("updateGame", game);
   })
 
   socket.on("ready", () => {
-    const game = rooms.get(socket.data.roomName);
-    if (!game) { return; }
+    const game = getGame(socket.data.roomName);
+    if(game.started) { return; }
 
-    game.setReady(socket.id);
-    serverMessage(socket.data.roomName);
-  })
-
-  socket.on("cardPlayed", (card: string) => {
-    const game = rooms.get(socket.data.roomName);
-    if (!game) { return; }
-
-    game.setPlayedCard(socket.id);
-    io.emit("updatePlayers", game.players);
-
-  })
-
-  socket.on("requestWhiteCards", (amount: number) => {
-    const game = rooms.get(socket.data.roomName);
-    if (!game) { return; }
-
-    const cards: string[] = [];
-    for (let i = 0; i < amount; ++i) {
-      cards.push(game.deck.drawWhiteCard());
+    game.readyPlayer(socket.id);
+    if (game.allReady) {
+      game.start();
+    } else {
+      game.status = `${game.readyCount}/${game.playerCount} ready`;
     }
-    io.to(socket.id).emit("recieveWhiteCards", cards);
+    io.emit("updateGame", game);
   })
 
+  socket.on("playedCard", (card: string) => {
+    const game = getGame(socket.data.roomName);
+
+    game.playCard(socket.id, card);
+    io.emit("updateGame", game);
+  })
+
+ 
   socket.on("disconnect", () => {
-    const game = rooms.get(socket.data.roomName);
-    if (!game) { return; }
+    const game = getGame(socket.data.roomName);
 
     game.removePlayer(socket.id);
+    if (game.players.length === 0) {
+      rooms.delete(socket.data.roomName);
+      console.log(`Deleted room ${socket.data.roomName}`);
+      return;
+    }
     console.log(`Socket ${socket.id} disconnected`);
-    io.emit("updatePlayers", game.players);
-    serverMessage(socket.data.roomName);
+    
+    if(!game.started) {
+      if (game.playersNeeded > 0) {
+        game.status = `Waiting for ${game.playersNeeded} more players...`;
+      } else if (!game.allReady) {
+        game.status = `${game.readyCount}/${game.playerCount} ready`;
+      }
+    }
+
+    io.emit("updateGame", game);
+  })
+
+  socket.on("drawCards", (amount: number) => {
+    const game = getGame(socket.data.roomName);
+
+    game.drawWhiteCards(amount, socket.id);
+    io.to(socket.id).emit("updateGame", game);
   })
 });
 
 io.listen(PORT);
 console.log(`Socket server listening on port ${PORT}`)
 
-function serverMessage(roomName: string) {
+function getGame(roomName: string): Game {
   const game = rooms.get(roomName);
-  if (!game) { return; }
-  
-  if (game.players.length < minPlayers) {
-    io.emit("serverMessage", `Waiting for ${minPlayers - game.players.length} more players to join...`);
-  } else if (game.getReadyCount() < game.players.length) {
-    io.emit("serverMessage", `${game.getReadyCount()}/${game.players.length} ready...`);
-  } else {
-    io.emit("serverMessage", "Starting game...");
-    startGame(roomName);
+  if (!game) {
+    throw new Error(`Couldn't get game for room ${roomName}`);
   }
+  return game;
 }
-
-function startGame(roomName: string) {
-  const game = rooms.get(roomName);
-  if (!game) { return; }
- 
-  game.start();
-  io.emit("start");
-  io.emit("prompt", game.deck.drawBlackCard());
-  io.emit("serverMessage", "Waiting for players...");
-  io.emit("updatePlayers", game.players)
-}
-
 
