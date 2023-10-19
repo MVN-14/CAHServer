@@ -2,8 +2,15 @@ import { Deck, Player } from './';
 
 export class Game {
   players: Player[] = [];
-  status: string = "";
+  started: boolean = false;
   deck: Deck = new Deck();
+  
+  private _czarIdx = 0;
+
+  start() {
+    this.started = true;
+    this.players[this._czarIdx++].isCzar = true;
+  }
 
   setReady(socketId: string) {
     const player = this.players.find(p => p.socketId === socketId);

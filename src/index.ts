@@ -1,5 +1,5 @@
 import { Server } from 'socket.io';
-import { Game, Deck, Player } from './lib';
+import { Game, Player } from './lib';
 
 const PORT: number = Number.parseInt(process.env.port || "6969");
 const io = new Server({
@@ -28,7 +28,9 @@ io.on("connection", (socket) => {
     game.players.push(new Player(username, socket.id));
 
     io.to(roomName).emit("updatePlayers", game.players);
-    serverMessage(roomName);
+    if(!game.started) {
+      serverMessage(roomName);
+    }
   })
 
   socket.on("ready", () => {
@@ -66,6 +68,7 @@ io.on("connection", (socket) => {
     game.removePlayer(socket.id);
     console.log(`Socket ${socket.id} disconnected`);
     io.emit("updatePlayers", game.players);
+    serverMessage(socket.data.roomName);
   })
 });
 
@@ -75,7 +78,7 @@ console.log(`Socket server listening on port ${PORT}`)
 function serverMessage(roomName: string) {
   const game = rooms.get(roomName);
   if (!game) { return; }
-
+  
   if (game.players.length < minPlayers) {
     io.emit("serverMessage", `Waiting for ${minPlayers - game.players.length} more players to join...`);
   } else if (game.getReadyCount() < game.players.length) {
@@ -87,21 +90,14 @@ function serverMessage(roomName: string) {
 }
 
 function startGame(roomName: string) {
-    const game = rooms.get(roomName);
-  if (!game) { return; }
-
-  const prompt = game.deck.drawBlackCard();
-  io.emit("start");
-  io.emit("prompt", prompt);
-  const czar = chooseRandomCzar(roomName);
-  io.emit("czar", czar)
-  io.emit("serverMessage", "Waiting for players...")
-}
-
-function chooseRandomCzar(roomName: string): string {
   const game = rooms.get(roomName);
-  if (!game) { return ""; }
-
-  const randomIdx = Math.floor(Math.random() * (game.players.length + 1));
-  return game.players[randomIdx].name;
+  if (!game) { return; }
+ 
+  game.start();
+  io.emit("start");
+  io.emit("prompt", game.deck.drawBlackCard());
+  io.emit("serverMessage", "Waiting for players...");
+  io.emit("updatePlayers", game.players)
 }
+
+
