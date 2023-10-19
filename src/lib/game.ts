@@ -4,21 +4,31 @@ export class Game {
   started: boolean = false;
   status: string = "";
   players: Player[] = [];
-  playedCards: {socketId: string, card: string}[] = [];
-  prompt?: {text: string, pick: number};
+  playedCards: { socketId: string, card: string }[] = [];
+  prompt?: { text: string, pick: number };
 
   get playersNeeded(): number { return this._minPlayers - this.players.length; }
   get allReady(): boolean { return this.readyCount == this.players.length; }
   get readyCount(): number { return this.players.filter(p => p.ready).length }
   get playerCount(): number { return this.players.length; }
+  get allCardsPlayed(): boolean {
+    for (let i = 0; i < this.players.length; ++i) {
+      if (!this.players[i].isCzar && this.players[i].playedCards !== this.prompt?.pick) {
+        return false;
+      }
+    }
+
+    return true;
+  }
 
   private _deck: Deck = new Deck();
   private _czarIdx = 0;
-  private _minPlayers = 3;
+  private _minPlayers = 3
 
   start(): void {
     this.started = true;
     this.players[this._czarIdx++].isCzar = true;
+    // this.prompt = this._deck.drawBlackCard(2);
     this.prompt = this._deck.drawBlackCard();
     this.status = "Game starting..."
   }
@@ -34,10 +44,13 @@ export class Game {
 
   playCard(socketId: string, card: string): void {
     const player = this.findPlayer(socketId);
-    
+    if (player.playedCards == this.prompt?.pick) {
+      return;
+    }
+
     player.cards = player.cards.filter(c => c !== card);
-    this.playedCards.push({socketId, card});
-    player.playedCard = true;
+    this.playedCards.push({ socketId, card });
+    ++player.playedCards;
   }
 
   drawWhiteCards(amount: number, socketId: string): void {
@@ -54,7 +67,7 @@ export class Game {
 
   private findPlayer(socketId: string): Player {
     const player = this.players.find(p => p.socketId === socketId);
-    if(!player) {
+    if (!player) {
       throw new Error(`Failed to find player with socketId ${socketId}`);
     }
 

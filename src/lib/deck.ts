@@ -15,11 +15,11 @@ export class Deck {
     return this.cards.white[cardIdx];
   }
 
-  public drawBlackCard(): { text: string, pick: number } {
+  public drawBlackCard(pick?: number): { text: string, pick: number } {
     let cardIdx: number;
     do {
       cardIdx = randomIntInRange(0, this.cards.black.length);
-    } while (this.blackCardsUsed.includes(cardIdx));
+    } while (this.blackCardsUsed.includes(cardIdx) || (pick && this.cards.black[cardIdx].pick !== pick));
     this.blackCardsUsed.push(cardIdx);
     return this.cards.black[cardIdx];
   }

@@ -24,10 +24,10 @@ io.on("connection", (socket) => {
     }
 
     game.addPlayer(new Player(username, socket.id));
-    if(!game.started) {  
-    if (game.playersNeeded > 0) {
-      game.status = `Waiting for ${game.playersNeeded} more players...`;
-    } else {
+    if (!game.started) {
+      if (game.playersNeeded > 0) {
+        game.status = `Waiting for ${game.playersNeeded} more players...`;
+      } else {
         game.status = `${game.readyCount}/${game.playerCount} ready`
       }
     }
@@ -37,7 +37,7 @@ io.on("connection", (socket) => {
 
   socket.on("ready", () => {
     const game = getGame(socket.data.roomName);
-    if(game.started) { return; }
+    if (game.started) { return; }
 
     game.readyPlayer(socket.id);
     if (game.allReady) {
@@ -52,10 +52,14 @@ io.on("connection", (socket) => {
     const game = getGame(socket.data.roomName);
 
     game.playCard(socket.id, card);
+
+    if (game.allCardsPlayed) {
+      game.status = "All cards played, waiting for czar to choose..."
+    }
     io.emit("updateGame", game);
   })
 
- 
+
   socket.on("disconnect", () => {
     const game = getGame(socket.data.roomName);
 
@@ -66,8 +70,8 @@ io.on("connection", (socket) => {
       return;
     }
     console.log(`Socket ${socket.id} disconnected`);
-    
-    if(!game.started) {
+
+    if (!game.started) {
       if (game.playersNeeded > 0) {
         game.status = `Waiting for ${game.playersNeeded} more players...`;
       } else if (!game.allReady) {
