@@ -15,13 +15,16 @@ export class Deck {
     return this.cards.white[cardIdx];
   }
 
-  public drawBlackCard(pick?: number): { text: string, pick: number } {
+  public drawBlackCard(): { text: string, pick: number } {
     let cardIdx: number;
     do {
       cardIdx = randomIntInRange(0, this.cards.black.length);
-    } while (this.blackCardsUsed.includes(cardIdx) || (pick && this.cards.black[cardIdx].pick !== pick));
+    } while (this.blackCardsUsed.includes(cardIdx) || (this.cards.black[cardIdx].pick > 1));
     this.blackCardsUsed.push(cardIdx);
-    return this.cards.black[cardIdx];
+    return {
+      text: this.cards.black[cardIdx].text.replace("_", "____"),
+      pick: this.cards.black[cardIdx].pick
+    };
   }
 
   /*

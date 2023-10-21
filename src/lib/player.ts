@@ -3,7 +3,8 @@ export class Player {
   playedCards: number = 0;
   isCzar: boolean = false;
   cards: string[] = [];
-  
+  points: number = 0;
+
   constructor (public name: string, public socketId: string) {
   }
 }

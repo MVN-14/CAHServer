@@ -1,5 +1,5 @@
 import { Server } from 'socket.io';
-import { Game, Player } from './lib';
+import { Card, Game, Player } from './lib';
 
 const PORT: number = Number.parseInt(process.env.port || "6969");
 const io = new Server({
@@ -26,9 +26,9 @@ io.on("connection", (socket) => {
     game.addPlayer(new Player(username, socket.id));
     if (!game.started) {
       if (game.playersNeeded > 0) {
-        game.status = `Waiting for ${game.playersNeeded} more players...`;
+        game.statusMessage = `Waiting for ${game.playersNeeded} more players...`;
       } else {
-        game.status = `${game.readyCount}/${game.playerCount} ready`
+        game.statusMessage = `${game.readyCount}/${game.playerCount} ready`
       }
     }
 
@@ -43,9 +43,9 @@ io.on("connection", (socket) => {
     if (game.allReady) {
       game.start();
     } else {
-      game.status = `${game.readyCount}/${game.playerCount} ready`;
+      game.statusMessage= `${game.readyCount}/${game.playerCount} ready`;
     }
-    io.emit("updateGame", game);
+    io.to(socket.data.roomName).emit("updateGame", game);
   })
 
   socket.on("playedCard", (card: string) => {
@@ -54,11 +54,31 @@ io.on("connection", (socket) => {
     game.playCard(socket.id, card);
 
     if (game.allCardsPlayed) {
-      game.status = "All cards played, waiting for czar to choose..."
+      game.statusMessage= "All cards played, waiting for czar to read cards..."
+      game.status = "reading";
+    } else {
+      game.statusMessage = `Waiting for ${game.playerCount - 1 - game.playedCards.length} more cards`
     }
-    io.emit("updateGame", game);
+    io.to(socket.data.roomName).emit("updateGame", game);
   })
 
+  socket.on("revealCard", (card: Card) => {
+    const game = getGame(socket.data.roomName);
+
+    game.revealCard(card);
+    if(game.allCardsRevealed) {
+      game.statusMessage = `All cards revealed, czar selecting winner...`;
+      game.status = "selecting";
+    }
+    io.to(socket.data.roomName).emit("updateGame", game);
+  })
+
+  socket.on("selectCard", (card: Card) => {
+    const game = getGame(socket.data.roomName);
+
+    game.selectCard(card);
+    io.to(socket.data.roomName).emit("updateGame", game);
+  })
 
   socket.on("disconnect", () => {
     const game = getGame(socket.data.roomName);
@@ -73,20 +93,20 @@ io.on("connection", (socket) => {
 
     if (!game.started) {
       if (game.playersNeeded > 0) {
-        game.status = `Waiting for ${game.playersNeeded} more players...`;
+        game.statusMessage = `Waiting for ${game.playersNeeded} more players...`;
       } else if (!game.allReady) {
-        game.status = `${game.readyCount}/${game.playerCount} ready`;
+        game.statusMessage = `${game.readyCount}/${game.playerCount} ready`;
       }
     }
 
-    io.emit("updateGame", game);
+    io.to(socket.data.roomName).emit("updateGame", game);
   })
 
-  socket.on("drawCards", (amount: number) => {
+  socket.on("drawCards", () => {
     const game = getGame(socket.data.roomName);
 
-    game.drawWhiteCards(amount, socket.id);
-    io.to(socket.id).emit("updateGame", game);
+    game.drawWhiteCards(socket.id);
+    io.to(socket.data.roomName).emit("updateGame", game);
   })
 });
 

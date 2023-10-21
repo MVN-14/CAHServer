@@ -1,11 +1,13 @@
-import { Deck, Player } from './';
+import { Deck, Player, Card } from './';
 
 export class Game {
   started: boolean = false;
   status: string = "";
+  statusMessage: string = "";
   players: Player[] = [];
-  playedCards: { socketId: string, card: string }[] = [];
+  playedCards: Card[] = [];
   prompt?: { text: string, pick: number };
+  choosing: boolean = false;
 
   get playersNeeded(): number { return this._minPlayers - this.players.length; }
   get allReady(): boolean { return this.readyCount == this.players.length; }
@@ -17,20 +19,32 @@ export class Game {
         return false;
       }
     }
-
     return true;
+  }
+  get allCardsRevealed(): boolean {
+    let result = true;
+    this.playedCards.forEach(c => {
+      if(c.faceDown) {
+        result = false;
+        return;
+      }
+    });
+    return result;
   }
 
   private _deck: Deck = new Deck();
   private _czarIdx = 0;
-  private _minPlayers = 3
+  private _minPlayers = 3;
+  private _maxCards = 7;
 
   start(): void {
     this.started = true;
     this.players[this._czarIdx++].isCzar = true;
-    // this.prompt = this._deck.drawBlackCard(2);
     this.prompt = this._deck.drawBlackCard();
-    this.status = "Game starting..."
+    this.statusMessage = "Game starting..."
+    this.players.forEach(({socketId}) => {
+      this.drawWhiteCards(socketId)
+    })
   }
 
   addPlayer(player: Player): void {
@@ -42,21 +56,36 @@ export class Game {
     player.ready = true;
   }
 
-  playCard(socketId: string, card: string): void {
+  playCard(socketId: string, text: string): void {
     const player = this.findPlayer(socketId);
     if (player.playedCards == this.prompt?.pick) {
       return;
     }
 
-    player.cards = player.cards.filter(c => c !== card);
-    this.playedCards.push({ socketId, card });
-    ++player.playedCards;
+    player.cards = player.cards.filter(c => c !== text);
+    this.playedCards.push({ socketId, text, faceDown: true });
+        ++player.playedCards;
   }
 
-  drawWhiteCards(amount: number, socketId: string): void {
-    const player = this.findPlayer(socketId);
+  revealCard(card: Card): void {
+    const revealedCard = this.playedCards.find(c => c.socketId === card.socketId);
+    if(!revealedCard) { return };
+    revealedCard.faceDown = false;
+  }
 
-    for (let i = 0; i < amount; ++i) {
+  selectCard(card: Card): void {
+    const player = this.players.find(p => p.socketId === card.socketId);
+    if(!player) { return; }
+    
+    ++player.points;
+    this.setupNextTurn();
+  }
+
+  drawWhiteCards(socketId: string): void {
+    const player = this.findPlayer(socketId);
+    const cardsToDraw =  this._maxCards - player.cards.length;
+
+    for (let i = 0; i < cardsToDraw; ++i) {
       player?.cards.push(this._deck.drawWhiteCard());
     };
   }
@@ -72,6 +101,17 @@ export class Game {
     }
 
     return player;
+  }
+
+  private setupNextTurn() {
+    this.playedCards = [];
+    this.statusMessage = "Starting next round...";
+    this.players.forEach((p) => {
+      p.playedCards = 0;
+      p.isCzar = false;
+    });
+    this.players[this._czarIdx++].isCzar = true;
+    this.prompt = this._deck.drawBlackCard();
   }
 
 }
