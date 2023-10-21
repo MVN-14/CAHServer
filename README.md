@@ -1,5 +1,6 @@
 ### Clone Against Humanity (server) - A Cards Against Humanity Clone
 
+![screenshot1](https://github.com/MVN-14/CAHServer/assets/117686444/9707912e-2d35-40b0-b828-3d009d04a87b)
 
 Play live version at [cah.mnogueira.ca](https://cah.mnogueira.ca) (hosted on [Vercel](https://vercel.com/))
 
