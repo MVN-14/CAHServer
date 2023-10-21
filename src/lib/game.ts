@@ -112,6 +112,7 @@ export class Game {
     });
     this.players[this._czarIdx++].isCzar = true;
     this.prompt = this._deck.drawBlackCard();
+    this.status = "";
   }
 
 }
